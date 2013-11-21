@@ -3,24 +3,27 @@
 import argparse
 import eventlet
 import pcap
-import umsgpack
+import socket
+import msgpack # msgpack-python
 
-eths = ["lo", "any", "eth0"]
+#TODO: requirements.txt
+
 devs = {}
 clients = []
 
 
 def print_packet(length, data, timestamp, fd):
+    if length > 20000:
+        print "WARNING: Large packet: {0} (sniffing loop?)".format(length)
     message = {"ln": length, "ts": timestamp, "if": devs[fd], "fd": fd, "dt": data}
     clients_copy = clients
     for client in clients_copy:
         try:
-            client.write(umsgpack.packb(message))
+            msgpack.pack(message, client)
             client.flush()
         except eventlet.green.socket.error:
             print "client {0} disconnected".format(client.fileno())
             clients.remove(client)
-    #print "len: {0}, time: {1}, data:\n{2}\n".format(length, timestamp, data.encode("hex"))
 
 
 def handle_eth(dev):
@@ -33,25 +36,41 @@ def handle_client(fd):
     print "client {0} connected".format(fd.fileno())
     clients.append(fd)
 
-parser = argparse.ArgumentParser(description='TODO describe program')
-parser.add_argument('-c', '--client', action='store_true', help='run as client (default: server)', default=False)
+parser = argparse.ArgumentParser(description="TODO describe program")
+parser.add_argument("-c", "--client", action="store_true", help="run as client (default: server)", default=False)
+parser.add_argument("-p", "--port", type=int, help="port of communication", default=6000)
+parser.add_argument("interfaces", metavar="N", nargs="+", help="interfaces to tunnel")
 args = parser.parse_args()
 
+port = args.port
 is_client = args.client
+eths = enumerate(args.interfaces)  # "eth0", "any", "lo"
 
 if is_client:
-    print "TODO"
-    pass
+    s = socket.socket()
+    host = socket.gethostname()  # TODO: host as argument
+    s.connect((host, port))
+    try:
+        unpacker = msgpack.Unpacker()
+        while True:
+            buf = s.recv(2048)
+            if not buf:
+                break
+            unpacker.feed(buf)
+            for message in unpacker:
+                print "time: {1}, interface: {2}, len: {0}\n".format(message["ln"], message["ts"], message["if"])
+                assert message["ln"] == len(message["dt"]), "difference: {0}".format(message["ln"] - len(message["dt"]))
+    except KeyboardInterrupt:
+        s.close()
 else:
-    for eth in eths:
+    for (id, eth) in eths:
         dev = pcap.pcapObject()
-        dev.open_live(eth, 1600, 1, 0)
-        devs[dev.fileno()] = eth
+        dev.open_live(eth, 65536, 1, 0)
+        devs[dev.fileno()] = (id, eth)
         eventlet.spawn(handle_eth, dev)
-    print "server socket listening on port 6000"
-    server = eventlet.listen(('0.0.0.0', 6000))
+    print "server socket listening on port {0}".format(port)
+    server = eventlet.listen(('0.0.0.0', port))
     while True:
-        eventlet.sleep(0)
         new_sock, address = server.accept()
         print "accepted", address
         eventlet.spawn(handle_client, new_sock.makefile('w'))
