@@ -2,6 +2,7 @@
 
 import argparse
 import eventlet
+import os
 import pcap
 import socket
 import msgpack # msgpack-python
@@ -31,6 +32,7 @@ def receive_packet(message):
         print "time: {0}, src_interface: {1}, dst_interface: {2}, len: {3}".format(message["ts"], message["if"],
                                                                                    dev["eth"], message["ln"])
         assert message["ln"] == len(message["dt"]), "difference: {0}".format(message["ln"] - len(message["dt"]))
+        os.write(dev["dev"].fileno(), message["dt"])
 
 
 def handle_eth(dev_id):
