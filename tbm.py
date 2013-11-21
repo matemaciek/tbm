@@ -32,21 +32,12 @@ def handle_eth(dev):
         dev.dispatch(0, lambda l, d, t: print_packet(l, d, t, dev.fileno()))
 
 
-def handle_client(fd):
+def handle_client_connected(fd):
     print "client {0} connected".format(fd.fileno())
     clients.append(fd)
 
-parser = argparse.ArgumentParser(description="TODO describe program")
-parser.add_argument("-c", "--client", action="store_true", help="run as client (default: server)", default=False)
-parser.add_argument("-p", "--port", type=int, help="port of communication", default=6000)
-parser.add_argument("interfaces", metavar="N", nargs="+", help="interfaces to tunnel")
-args = parser.parse_args()
 
-port = args.port
-is_client = args.client
-eths = enumerate(args.interfaces)  # "eth0", "any", "lo"
-
-if is_client:
+def start_client():
     s = socket.socket()
     host = socket.gethostname()  # TODO: host as argument
     s.connect((host, port))
@@ -62,7 +53,9 @@ if is_client:
                 assert message["ln"] == len(message["dt"]), "difference: {0}".format(message["ln"] - len(message["dt"]))
     except KeyboardInterrupt:
         s.close()
-else:
+
+
+def start_server():
     for (id, eth) in eths:
         dev = pcap.pcapObject()
         dev.open_live(eth, 65536, 1, 0)
@@ -73,4 +66,19 @@ else:
     while True:
         new_sock, address = server.accept()
         print "accepted", address
-        eventlet.spawn(handle_client, new_sock.makefile('w'))
+        eventlet.spawn(handle_client_connected, new_sock.makefile('w'))
+
+parser = argparse.ArgumentParser(description="TODO describe program")
+parser.add_argument("-c", "--client", action="store_true", help="run as client (default: server)", default=False)
+parser.add_argument("-p", "--port", type=int, help="port of communication", default=6000)
+parser.add_argument("interfaces", metavar="N", nargs="+", help="interfaces to tunnel")
+args = parser.parse_args()
+
+port = args.port
+is_client = args.client
+eths = enumerate(args.interfaces)  # "eth0", "any", "lo"
+
+if is_client:
+    start_client()
+else:
+    start_server()
