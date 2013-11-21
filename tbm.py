@@ -8,9 +8,6 @@ import msgpack # msgpack-python
 
 #TODO: requirements.txt
 
-devs = {}
-clients = []
-
 
 def print_packet(length, data, timestamp, fd):
     if length > 20000:
@@ -37,9 +34,9 @@ def handle_client_connected(fd):
     clients.append(fd)
 
 
-def start_client():
+def start_client(host, port):
     s = socket.socket()
-    host = socket.gethostname()  # TODO: host as argument
+    host = socket.gethostbyname(host)
     s.connect((host, port))
     try:
         unpacker = msgpack.Unpacker()
@@ -55,12 +52,7 @@ def start_client():
         s.close()
 
 
-def start_server():
-    for (id, eth) in eths:
-        dev = pcap.pcapObject()
-        dev.open_live(eth, 65536, 1, 0)
-        devs[dev.fileno()] = (id, eth)
-        eventlet.spawn(handle_eth, dev)
+def start_server(port):
     print "server socket listening on port {0}".format(port)
     server = eventlet.listen(('0.0.0.0', port))
     while True:
@@ -68,17 +60,26 @@ def start_server():
         print "accepted", address
         eventlet.spawn(handle_client_connected, new_sock.makefile('w'))
 
+
+def open_eths(eths):
+    for (id, eth) in eths:
+        dev = pcap.pcapObject()
+        dev.open_live(eth, 65536, 1, 0)
+        devs[dev.fileno()] = (id, eth)
+        eventlet.spawn(handle_eth, dev)
+
 parser = argparse.ArgumentParser(description="TODO describe program")
-parser.add_argument("-c", "--client", action="store_true", help="run as client (default: server)", default=False)
+parser.add_argument("-c", "--client", metavar="HOST", help="run as client, connect to HOST", default=None)
 parser.add_argument("-p", "--port", type=int, help="port of communication", default=6000)
-parser.add_argument("interfaces", metavar="N", nargs="+", help="interfaces to tunnel")
+parser.add_argument("interfaces", metavar="IF", nargs="+", help="interfaces to tunnel")
+#TODO: debug / minimal mode?
 args = parser.parse_args()
 
-port = args.port
-is_client = args.client
-eths = enumerate(args.interfaces)  # "eth0", "any", "lo"
+devs = {}
+clients = []
 
-if is_client:
-    start_client()
+open_eths(enumerate(args.interfaces))
+if args.client is None:
+    start_server(args.port)
 else:
-    start_server()
+    start_client(args.client, args.port)
