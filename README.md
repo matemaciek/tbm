@@ -8,7 +8,7 @@ tbm
 
 - Usage:
 
-
+    sudo apt-get install python-dev python-libpcap
     sudo python tbm.py [-h] [-c HOST] [-p PORT] IF [IF ...]
 
 
