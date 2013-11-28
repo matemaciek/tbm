@@ -31,7 +31,6 @@ def receive_packet(message):
         dev = devs[message["id"]]
         print "time: {0}, src_interface: {1}, dst_interface: {2}, len: {3}".format(message["ts"], message["if"],
                                                                                    dev["eth"], message["ln"])
-        assert message["ln"] == len(message["dt"]), "difference: {0}".format(message["ln"] - len(message["dt"]))
         os.write(dev["dev"].fileno(), message["dt"])
 
 
@@ -77,7 +76,7 @@ def open_eths(eths):
     devs = []
     for (id, eth) in enumerate(eths):
         dev = pcap.pcapObject()
-        dev.open_live(eth, 65536, 1, 0)
+        dev.open_live(eth, 1500, 1, 0)
         devs.append({"dev": dev, "eth": eth})
         eventlet.spawn(handle_eth, id)
     return devs
