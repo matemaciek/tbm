@@ -1,0 +1,2 @@
+eventlet
+msgpack-python

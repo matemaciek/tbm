@@ -5,7 +5,7 @@ import eventlet
 import os
 import pcap
 import socket
-import msgpack # msgpack-python
+import msgpack
 
 #TODO: requirements.txt
 #TODO: logging
