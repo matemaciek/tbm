@@ -8,9 +8,11 @@ import socket
 import msgpack # msgpack-python
 
 #TODO: requirements.txt
+#TODO: logging
 
 
-def send_packet(length, data, timestamp, dev_id):
+def send_packet(packet, dev_id):
+    (length, data, timestamp) = packet
     if length > 20000:
         print "WARNING: Large packet: {0} (sniffing loop?)".format(length)
     message = {"ln": length, "ts": timestamp, "if": devs[dev_id]["eth"], "id": dev_id, "dt": data}
@@ -38,7 +40,7 @@ def handle_eth(dev_id):
     while True:
         dev = devs[dev_id]["dev"]
         eventlet.hubs.trampoline(dev.fileno(), read=True)
-        dev.dispatch(0, lambda l, d, t: send_packet(l, d, t, dev_id))
+        send_packet(dev.next(), dev_id)
 
 
 def handle_client_connected(fd):
