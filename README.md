@@ -2,13 +2,14 @@ tbm
 ===
 - Installation:
 
-
+    
+    sudo apt-get install python-dev python-libpcap
+    
     sudo pip install -r requirements.txt
 
 
 - Usage:
 
-    sudo apt-get install python-dev python-libpcap
     sudo python tbm.py [-h] [-c HOST] [-p PORT] IF [IF ...]
 
 
